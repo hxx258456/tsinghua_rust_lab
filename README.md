@@ -105,6 +105,8 @@ let total_slice = &arr; // all
 let total_slice = &arr[..]; // all
 let partial_slice = &arr[2..5]; // [2,3,4]
 
+let slice = &arr[0..=3]; // [0,1,2,3]
+
 // 可变的arr才能声明可变的切片
 let mut arr = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; 
 let mut slice = &mut arr;
@@ -309,6 +311,544 @@ fn main() {
 }
 
 ```
+
+### rust所有权
+
+- rust中每个值都有所有者owner
+
+- 一个值同一时刻只有一个所有者
+
+- 当所有者失效，值也将被丢弃
+
+- 变量绑定获取数据的所有权
+
+  ```rust
+  // carete Vec object in heap
+  // Give ownership of the Vec obj to v1
+  let mut v1 = vec![1, 2, 3];
+  v1.push(4);
+  v1.pop();
+  // 作用域结束,v1 仍然拥有对象，可以对其进行清理
+  ```
+
+- 移动语义
+
+  ```rust
+  let v1 = vec![1, 2, 3];
+  
+  // Ownership of the Vec object move to v2.
+  let v2 = v1;
+  // rust编译器认为拷贝数据的代价是高昂的，对于没有实现copy trait的类型，rust会进行所有权转移v1>v2
+  // rust也可以通过std::mem::{replace, take, swap, drop}来实现高级所有权管理
+  ```
+
+- 所有权转移
+
+  ```rust
+  fn vector_length(v: Vec<i32>) -> Vec<i32> {
+      // do something...
+      // return ownership v back to the caller
+      v
+  }
+  
+  // 并不是所有时候都想移交所有权
+  // 如果每次传递参数都要移交所有权代码将会变得非常繁琐
+  ```
+
+- 借用
+
+  ```rust
+  //! 与其移交所有权不如进行借用borrow
+  /// 可以通过对变量取引用来借用变量中数据的所有权，此时所有权本身并没有发生变化
+  let v = vec![1, 2, 3];
+  let v_ref = &v;
+  assert_eq!(v[1], v_ref[1]);
+  
+  // 借用存在的副作用
+  let v_new = v; // 这里edition 2018之前会报错因为当时的rust使用的是词法作用域声明周期，当一个变量被借用时，不能进行所有权转移，因为这会导致引用失效
+  // edition 2018 rfc提出了NLL非词法生命周期
+  // 对象或引用的生命周期却决于控制流图，而不是词法作用域
+  ```
+
+- 可变借用
+
+  ```rust
+  fn push(vec_ref: &mut Vec<i32>, x: i32) {
+      vec_ref.push(x);
+  }
+  
+  fn main() {
+      let mut v = vec![1, 2, 3, 4, 5];
+      let v = &mut v;
+      push(v, 1)
+  }
+  
+  ```
+
+- 借用与绑定
+
+  ```rust
+  fn push2(vec_ref: &mut Vec<i32>, x: i32) {
+      let mut vector = *vec_ref; // error: connot move out of borrowed content
+      vector.push(x);
+  }
+  // 不能通过解引用然后绑定给变量，这样做会引起数据的所有权转移（同时引用还没有失效）
+  ```
+
+- Copy类型
+
+  ```rust
+  // rust中定义了Copy类型trait，表示一种类型可以拷贝，而不是默认的移动语义
+  //! 大多数基本类型都是Copy类型(i32,u64,f64,char,bool等等).
+  /// 包含引用的类型不是Copy类型(例如,Vec String等)
+  
+  let x = 32;
+  let y = x;
+  println!("{x},{y}");
+  ```
+
+- 借用的规则
+
+  - 不能在某个对象不存在后继续保留对他的引用
+  - 一个对象可以同时存在多个不可变引用&T
+  - 和一个可变引用&mut T
+  - 以上两者不能同时存在
+
+- 借用的作用
+
+  ```rust
+  // 以迭代器场景为例,在修改集合的同时进行迭代访问会引起迭代器失效
+  let mut vs = vec![1, 2, 3, 4];
+  for v in &vs {
+      vs.pop();
+      // ERROR: cannot borrow `vs` as mutable because
+      // it is also borrowed as immutable
+  }
+  // 以上问题在go中如果通过for_range迭代时，会拷贝一份数据，在迭代时修改源数据不会影响迭代，但这造成了一些性能问题
+  // 如果使用for ;;;{}这种方式迭代，会造成死循环
+  
+  
+  // 下面代码在c++中可以通过编译，但是会在运行时报错
+  let y: &i32;
+  {
+      let x = 5;
+      y = &x; // rust编译器会检查出这里有错误 变量x的声明周期已经结束但是他正在被借用
+  }
+  println!("{}",*y);
+  ```
+
+### Vec迭代器
+
+```rust
+let mut vs = vec![1, 2, 3, 4, 5];
+// vector三种迭代方式
+// Borrow imutable
+for v in &vs {
+    println!("{v}");
+}
+
+// Borrow mutable
+for v in &mut vs {
+    *vs.push(3); // err: 编译器报错,同时存在多个可变借用
+    println!("{v}");
+}
+
+// take ownership
+for v in vs {
+    println!("{v}");
+}
+
+// vs is valid
+```
+
+### 结构体
+
+- 声明
+
+  ```rust
+  struct Point {
+      x: i32,
+      y: i32
+  }
+  ```
+
+- 初始化
+
+  ```rust
+  let origin = Point { x: 0, y: 0 };
+  ```
+
+- 访问
+
+  ```rust
+  let mut p = Point{x: 19, y: 18};
+  p.x += 1;
+  p.y += 1;
+  ```
+
+- 结构体与可变性
+
+  结构体没有域级的可变性内部可变性可以通过Cell类型实现
+
+  可变性时变量绑定的属性，跟类型无关
+
+  ```rust
+  struct Point{
+      x: i32,
+      mut y: i32,// Illegal
+  }
+  ```
+
+- 结构体的访问权限
+
+  - 结构体在它所在的模块的名字空间里
+  - 结构体的域默认是私有的
+  - 私有域只能在结构体所在的模块内访问
+
+  ```rust
+  mod foo {
+      pub struct Point {
+          pub x: i32,
+          y: i32,
+      }
+      
+      pub fn new(x: i32,y: i32) -> Point {
+          Point { x: x, y: y }
+      }
+  }
+  
+  fn main() {
+      let b = foo::Point { x: 12, y: 12 }; // error: y is private
+      let b = foo::new(12, 12);
+  }
+  ```
+
+- 结构体的更新语法
+
+  ``` rust
+  // 结构体初始化时可以用..s从s中获取部分或者全部域.
+  // 所有没有在初始化列表里指定的域都是从目标结构体里获取
+  // 两个结构体类型必须一致
+  struct Foo {
+      a: i32,
+      b: i32,
+      c: i32,
+      d: i32,
+      e: i32,
+  }
+  
+  let mut x = Foo {
+      a: 6,
+      b: 7,
+      c: 8,
+      d: 9,
+      e: 10,
+  };
+  
+  let x2 = Foo { e: 4, ..x };
+  
+  x = Foo { a: 2, b: 2, ..x }; // 结构体更新语法
+  ```
+
+### 元组结构体
+
+元组结构体是结构体的一种形态，有结构体名字，但没有域的名字
+
+可以像元组那样通过数字来访问域，例如x.0,x.1等等。
+
+也可以通过match类进行匹配
+
+```rust
+fn main() {
+    struct Color(i32, i32, i32);
+
+    let mut c = Color(0, 255, 255);
+
+    c.0 = 255;
+
+    match c {
+        Color(r, g, b) => println!("({}, {}, {})", r, g, b)
+    }
+}
+```
+
+元组结构体的用途
+
+```rust
+// 可以用来创建新的类型而不仅仅是别名
+struct Meters(i32); // 新建类型 type Net.Addr string
+struct Yards(i32);
+
+type MetersAlias = i32; // 类型别名类似于go中的type Pointer = uint
+```
+
+单位元结构体
+
+```rust
+// 可以声明零大小的结构体(没有域的结构体)
+// 这种结构体也是可以实例化的
+// 通常被用来作为其他数据结构体的标记类型
+strcut Unit;
+let b = Unit;
+```
+
+### 枚举enum
+
+- 枚举用来表示可以是多选一的数据
+- 枚举的每种变体可以:
+  - 没有数据(单位元变体)
+  - 有命名的数据域(结构体变体)
+  - 元组变体
+
+```rust
+enum Resultish {
+    Ok,
+    Err(String),
+    Warning { Code: i32, message: String },
+}// 枚举声明
+```
+
+- 枚举的变体存在于枚举本身的名字空间中 Resultish::Ok
+- 可以使用user Resultish::*把所有变体引入到当前的名字空间
+- 枚举可以进行模式匹配
+
+```rust
+enum Resultish {
+    Ok,
+    Err(String),
+    Warning { Code: i32, message: String },
+}
+fn main() {
+    match make_request() {
+        Resultish::Ok => println!("Success!"),
+        Resultish::Warning { Code, message } => println!("Warning: {}!", message),
+        Resultish::Err(s) => println!("Failed with error: {s}"),
+    }
+}
+
+fn make_request() -> Resultish {
+    return Resultish::Ok;
+}
+```
+
+### 递归枚举类型
+
+```rust
+enum List {
+    Nil,
+    Cons(i32, List),
+}
+// 使用上面方式定义在编译时会出现无穷大小的问题
+// 结构体和枚举默认情况下时内联存储的，因此不能递归
+// 它们的元素正常情况下不使用引用来存储，但可以显示指定
+// Box<T>是指向堆上对象的指针，作为对象的唯一所有者，Box唯一拥有它的数据(T类型),不能创建别名
+// Box在超过作用域时会自动销毁
+let boxed_five = Box::new(4);
+
+enum List {
+    Nil,
+    Cons(i32, Box<List>),
+}
+```
+
+### 方法
+
+```rust
+impl Point {
+    pub fn distance(&self, other: Point) -> f32 {
+        let (dx, dy) = (self.x - other.x, self.y - other.y);
+        ((dx.pow(2) = dy.pow(2)) as f32).sqrt()
+    }
+}
+
+fn main() {
+    let p = Point { x: 1, y: 2};
+    p.distance();
+}
+// 结构体和枚举的方法可以实现在impl代码块里
+// 方法通过.方法名的方式访问
+// 可以使用pub将方法声明为公共访问的
+// 对枚举和结构体是一样的
+```
+
+### 方法与所有权
+
+```rust
+// 方法的第一个参数(名字规定为self)决定这个方法的所有权种类
+// &self: 方法引用对象的值
+// &mut self: 方法借用对象的值
+// self方法获得对象的所有权 方法会消耗掉对象，同时可以返回其他的值
+impl Point {
+    fn distance(&self, other: Point) -> f32 {
+        let (dx, dy) = (self.x - other.x, self.y - other.y);
+        ((dx.pow(2) = dy.pow(2)) as f32).sqrt()
+    }
+    
+    fn translate(&mut self, x: i32, y: i32) {
+		self.y += x;
+        self.y += y;
+    }
+    
+    fn mirror_y(self) -> Point {
+        Point { x: -self.x, y: self.y }
+    }
+}
+```
+
+### 关联函数
+
+```rust
+impl Point {
+    fn new(x: i32, y: i32) -> Point {
+        Point { x: x, y: y}
+    }
+}
+
+fn main() {
+    let p = Point::new(1, 2);
+}
+
+// 关联函数与方法类似，但是没有self参数
+// 调用时使用名字空间语法Point::new()
+// 一般会创建名为New的关联函数起到构造函数的作用
+// rust不支持函数重载
+// rust中的方法继承用的是compose合成的办法
+```
+
+### 模式匹配
+
+- 结构体的匹配
+
+  ```rust
+  pub struct Point {
+      x: i32,
+      y: i32,
+  }
+  
+  match p {
+      Point { x, y } => println!("({},{})", x, y)
+  }
+  
+  match p {
+      Point { y: y1, x: x1 } => println!("{x1}, {y1}")
+  }
+  
+  match p {
+      Point { y, .. } => println!("{y}")
+  }
+  ```
+
+- 以引用方式匹配
+
+  ```rust
+  let mut x = 16;
+  
+  match x {
+      ref r if x == 5 => println("{x}"),
+      ref mut r => *r = 5
+  }
+  ```
+
+- if let语句
+
+  ```rust
+  enum Resultish {
+      Ok,
+      Warning { code: i32, message: String },
+      Err(String),
+  }
+  
+  if let Reulstish::Err(s) = make_result() {
+      println!("Total and utter failure: {}", s);
+  } else {
+      println!("ok.");
+  }
+  ```
+
+- while let语句
+
+  ```rust
+  let mut v = vec![1, 2, 3];
+  
+  while let Some(x) = v.pop() {
+      println!("{}", x);
+  }
+  ```
+
+- 内部匹配
+
+  ```rust
+  // 模式匹配时可以把匹配的一部分绑定到一个变量，例如在匹配范围的时候，可以获取匹配的实际值；对于更复杂的数据结构，可以用 @ 创建内部元素的变量绑定。
+  #[derive(Debug)]
+  enum A { None, Some(B) }
+  #[derive(Debug)]
+  enum B { None, Some(i32) }
+  
+  fn foo (x: A) {
+      match x {
+          a @ A::None => println!("a is A::{:?}", a),
+          ref a @ A::Some(B::None) => println!("a is A::{:?}", *a),
+          A::Some(B::Some(b @ 1..=2)) => println!("b is {:?}", b),
+          A::Some(b @ B::Some(_)) => println!("b is B::{:?}", b),
+      }
+  }
+  
+  foo(A::None); // a is A::None
+  foo(A::Some(B::None)); // a is A::Some(None)
+  foo(A::Some(B::Some(5))); // b is B::Some(5)
+  ```
+
+  
+
+- 模式匹配的穷尽性
+
+  模式匹配的所有分支对于模式来说必须是穷尽的
+
+  ```rust
+  fn main() {
+      fn plus_one(x: Option<i32>) -> Option<i32> {
+          match x {
+              Some(i) => Some(i + 1),
+              // error: not exhaustive
+      	}
+      }
+      let five = Some(5);
+      let six = plus_one(five);
+      let none = plus_one(None);
+  }
+  ```
+
+  
+
+- for循环中的模式匹配
+
+  ```rust
+  let v = vec![1, 2, 3];
+  // 在 for 循环的 for 和 in 之间描述循环变量时可以使用模式匹配
+  for (i, x) in v.iter().enumerate() {
+      println!("v[{i}] = {x}");
+  }
+  ```
+
+- 函数参数中的模式匹配
+
+  ```rust
+  fn tuple_add((a, b): (i32, i32)) -> i32 {
+  	a + b
+  }
+  fn main() {
+  	tuple_add((1, 2));
+  }
+  
+  ```
+
+  
+
+- 
+
+
+
+
 
 
 
