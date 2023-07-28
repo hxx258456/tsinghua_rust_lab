@@ -28,4 +28,6 @@ let str_attr = vec![hello, other];
 - stack:分配在栈上的字节数组，可以转换为&str类型
 - heap:基于String生成的切片s[1..]
 
-![](E:\github.com\hxx258456\tsinghua_rust_lab\images\rust_string_str.png)
+
+
+![](https://github.com/hxx258456/tsinghua_rust_lab/blob/main/images/rust_string_str.png?raw=true)
