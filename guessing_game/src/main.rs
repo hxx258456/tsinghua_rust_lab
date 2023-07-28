@@ -1,11 +1,6 @@
-#![feature(core_intrinsics)]
 use rand::Rng;
 use std::{cmp::Ordering, io};
 
-#[warn(unsafe_code)]
-fn print_type_of<T>(_: &T) {
-    println!("{}", unsafe { std::intrinsics::type_name::<T>() });
-}
 
 fn main() {
     println!("Guess the number!");
@@ -13,18 +8,18 @@ fn main() {
 
     let secret_number = rand::thread_rng().gen_range(1..=100);
 
-    loop {
-        let mut guess = String::new();
-        print_type_of(&guess); // <<--------为什么这里变成guess String类型
+    let mut guess = String::new();
 
+
+    loop {
         io::stdin()
-            .read_line(&mut guess)
+            .read_line(&mut guess) // there need &mut String but give u32
             .expect("Failed to read line");
         let guess: u32 = match guess.trim().parse() {
             Ok(num) => num,
             Err(a) => {
-                println!("{a}");
-                continue;
+                panic!("{a}");
+                // continue;
             }
         };
         println!("You guessed: {guess}");
@@ -36,7 +31,6 @@ fn main() {
 
                 break;
             }
-        }
-        print_type_of(&guess); // <<--------这里guess u32类型
+        }                                                   // guess is u32
     }
 }

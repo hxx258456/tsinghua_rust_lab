@@ -64,7 +64,7 @@ let a = (let b = 1);
 
 ```rust
 /// bool: true/false
-/// char: 'R', '级' 公众的rune
+/// char: 'R', '级' go中的rune
 /// number: i8~i128 u8~u128 isiz等于go中的int usize等于go中的uint f32,f64,10.0f32,10u8,10000_10000
 /// fn函数
 ```
