@@ -842,9 +842,723 @@ fn main() {
   
   ```
 
+
+### 字符串连接操作
+
+```rust
+let a = String::from("hello");
+let b = String::from(" world");
+let c = a + &b; // `a` is moved to c
+
+let a = String::from("hello");
+let b = String::from(" world");
+let c = a.clone() + &b; // `a` still alive
+
+// 连接两个&str需要把第一个转成String
+let a = "hello";
+let b = " world";
+let c = a.to_string() + b;
+// 连接操作代码的实现
+fn add(mut self, other: &str) -> String {
+    self.push_str(other);
+    self
+}
+```
+
+### Option枚举类型
+
+```rust
+enum Option<T> {
+    None,
+    Some(T),
+}
+// rust使用Option枚举类来处理空值情况
+match foo() {
+    None => (),
+    Some(value) => {
+        bar(value)
+        // ...
+    },
+}
+// Option::unwrap 遇到None时发生panic
+// Option::map 希望对一个map进行变换，也就是有值的时候作用一个函数，空值的时候继续保持空值
+// Option::and_then 返回值变成Option(U)
+// Option:;unwrap_or 对于空值的情况返回默认值
+// Option::unwrap_or_else 默认值是由闭包函数计算而来
+// Option::is_some bool
+// Option::is_none bool
+// Option::map_or
+// Option::map_or_else
+// Option::ok_or
+// Option::ok_or_else
+// Option::and
+// Option::or
+// Option::xor
+```
+
+```rust
+fn divide(numerator: f64, denominator: f64) -> Option<f64> {
+    if denominator == 0.0 {
+        None
+    } else {
+        Some(numerator / denominator)
+    }
+}
+
+let result = divide(2.0, 3.0);
+
+result.unwrap();
+```
+
+Option的典型用途:
+
+- 初始值
+- 函数定义域不是全集
+- 简单的错误情况
+- 结构体的可选域或可拿走的域
+- 可选的函数参数
+- 空指针
+
+
+
+### 错误处理
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+```
+
+Result与Option类似，除了正常结果外，还可以表示错误状态。
+
+可以通过ok或err等方法转换成Option
+
+对于返回结果是Result的函数，一定要显示进行处理，unwrap，expect，match模式匹配，不处理编译器会警告
+
+```rust
+// 一般常用的错误处理方法是在自己编写的库里使用自定义的错误类型，并定义Result的别名
+use std::io:Error;
+
+type Result<T> = Result<T, Error>;
+
+
+// 使用的时候
+use std::io;
+fn foo() -> io::Result {
+    // ....
+}
+```
+
+?操作符用来提前传播错误
+
+```rust
+// 配合Result类型
+// 如果是Err则提前返回，当前函数立即返回该错误
+// 如果是Ok则取出值作为?操作符的结果
+fn read_username_form_file() -> Result<String, io::Error> {
+    let mut username = String::new();
+    File::open("hello.txt")?.read_to_string(&mut username)?;
+    Ok(username)
+}
+
+// 配合Option类型
+// 如果是None则提前返回，当前函数立即返回None
+// 如果是Some则取出值作为?操作符的结果
+fn last_char_of_first_line(text: &str) -> Option<char> {
+    text.lines().next()?.chars().last()
+}
+```
+
+#### 容器类型
+
+- Vec<T>
+
+  连续空间，末尾可以高效增删
+
+- VecDeque<T>
+
+  双端向量，两端可以高效增删，使用环形缓冲区实现
+
+- LnkedList<T>
+
+  双向链表，不能随机索引
+
+- HashMap<K, V>
+
+  ```rust
+  use std::collections::HashMap;
+  
+  let mut scores = HashMap::new();
+  
+  scores.insert(String::from("Blue"), 10);
+  
+  let team_name = String::from("Blue");
+  let score = scores.get(&team_name);
+  
+  for (key, value) in &scores {
+      println!("{key}, {value}");
+  }
+  // hash表的所有权对于Copy类型，拷贝进hash表
+  // 对于非Copy类型，所有权移动进哈希表，哈希表拥有所有权
+  
+  let field_name = String::from("Favorite color");
+  let field_value = String::from("Blue");
+  let mut map = HashMap::new();
+  map.insert(field_name, field_value); // field_name and field_value ownership move to hashmap
+  // field_name and field_value invalid
+  
+  scores.insert(String::from("Blue"), 10); // 改写
+  scores.entry(String::from("Blue")).or_insert(50); // 不存在时添加
+  
+  // 基于旧值更新
+  let text = "hell world wonderfule world";
+  let mut map = HashMap::new();
+  for word in text.split_whitespace() {
+      let count = map.entry(word).or_insert(0);
+      *count += 1;
+  }
+  ```
+
   
 
-- 
+- BTreeMap<K, V>
+
+  有序HashMap
+
+- HashSet<T>
+
+- BTreeSet<T>
+
+- BinaryHeap<T>
+
+### 迭代器
+
+```rust
+pub trait Iterator {
+    type Iterm, // 迭代器特型的关联类型
+    fn next(&mut self) -> Option<Self::Item>,
+    // ..
+}
+```
+
+迭代器与所有权
+
+三种迭代类型:
+
+- into_inter(), 产生T类型
+- iter()，产生&T
+- iter_mut，产生&mut T
+
+for in循环其实就是迭代器的语法糖
+
+```rust
+let values = vec!(1, 2, 3, 4, 5);
+
+
+{
+    let result = match values.into_iter() {
+        mut iter => loop {
+            match iter.next() {
+                Some(x) => { println!("{x}", )},
+                None => break,
+            }
+        }
+    };
+    result
+}
+```
+
+迭代器可以进行类型转换操作
+
+```rust
+// collect 将迭代器转换为其他集合类型
+let set = values.iter().collect::<HashSet<_>>();
+
+// 把迭代器折叠成单一值
+// fold有两个参数初始值，和折叠函数
+let sum = values.iter().fold(0, |acc, v| acc + v);
+
+let leicheng = values.iter().fold(1, |acc, v| acc * v);
+```
+
+迭代适配器
+
+迭代适配器用来操作一个迭代器生成另一个迭代器，惰性求值，就是在调用的时候才进行求值
+
+```rust
+let twice_vs = values.iter().map(|x| x * 2).collect::<Vec<_>>();
+
+let tale_vs = values.iter().take(5);
+```
+
+### 泛型
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+struct Point<T> {
+    x: T，
+    y: T,
+}
+
+enum List<T> {
+    Nil,
+    Cons(T, Box<List<T>>),
+}
+
+impl<T, E> Result<T, E> {
+    fn is_ok(&self) -> bool {
+        match *self {
+            OK(_) => true,
+            Err(_) => false,
+        }
+    }
+}
+
+fn foo<T, U> (x: T, y: U) {
+    // ..
+}
+```
+
+### 特型
+
+为了抽象类型的共性机制，rust提出了trait的概念
+
+1.抽象了多种类型的共同特性  (类似于go中有方法的interface)
+
+2.大多数方法只需要列出方法的签名，不需要包含定义
+
+```rust
+trait PrettyPrint {
+    fn format(&self) -> String;
+}
+```
+
+为类型实现特型
+
+```rust
+impl PrettyPrint for Point {
+    fn format(&self) -> String {
+        format!("{}, {}", self.x, self.y)
+    }
+}
+```
+
+rust中使用trait在泛型编程中对类型参数进行约束
+
+```rust
+fn cloning_machine<T: Clone>(t: T) -> (T, T) {
+    (t.clone(), t.clone())
+}
+
+fn cloning_machine<T>(t: T) -> (T, T) {
+    where T: Clone {
+        (t.clone(), t.clone())
+    }
+}
+
+fn clone_and_compare<T: Clone + Ord>(t1: T, t2: T) -> bool {
+    t1.clone() > t2.clone()
+}	
+```
+
+结构化泛型数据中使用特型约束
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+trait PrettyPrint {
+    fn format(&self) -> String;
+}
+
+impl<T: PrettyPrint, E: PrettyPrint> PrettyPrint for Result<T, E> {
+    fn format(&self) -> String {
+        match *self {
+            Ok(t) => format!("Ok({})", t.format()),
+            Err(e) => format!("Err({})", e.format()),
+        }
+    }
+}
+
+trait Equals {
+    fn equals(&self, other: &Self) -> bool; //&Self指的是&Result
+}
+
+impl<T: Equals, E: Equals> Equals for Result<T, E> {
+    fn equals(&self, other: &Self) -> bool {
+        match (*self, *other) {
+            Ok(t1), Ok(t2) => t1.equals(t2),
+            Err(e1), Err(e2) => e1.euqals(e2),
+            _ => false
+        }
+    }
+}
+```
+
+rust中的继承
+
+```rust
+// rust特型之间存在先后关系
+// Eq需要先实现PartialEq, Copy需要先实现Clone
+trait Parent {
+    fn foo(&self) {
+        // ...
+    }
+}
+
+trait Child: Parent {
+    fn bar(&self) {
+        self.foo();
+        // ...
+    }
+}
+```
+
+特性中的默认方法
+
+```rust
+trait PartialEq<Rhs: ?Sized = Self> {
+    fn eq(&self, other: &Rhs) -> bool;
+    
+    fn ne(&self, other: &Rhs) -> bool {
+        !self.eq(other)
+    }
+}
+
+trait Eq: PartialEq<Self> {}
+```
+
+实现特型的时候可以改写默认方法。
+
+但是一定要想好充分的理由来这么做，例如重新定义了ne导致违反了eq和ne之间的逻辑关系
+
+特型的自动获得
+
+```rust
+// 一些特型实现起来比较直观，编译器可以自动完成
+// 使用#[derive(...)]属性让编译器完成相应特型的自动实现
+// 这样做可以避免重复手动实现诸如Clone这样的类型
+#[derive(Eq, PartialEq, Debug)]
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+```
+
+需要注意只能自动获得下列核心特型:
+
+Hash, Ord, Clone, Copy, Default, Eq, PartialEq, PartialOrd
+
+可以使用宏定义来完成自定义特型的自动获取
+
+特型的自动获得需要满足下列条件:
+
+类型的所有成员都能自动获得指定特型
+
+例如: Eq不能在包含f32的结构体类型上自动获得，因为f32不是Eq的
+
+rust中的核心特型
+
+```rust
+pub trait Clone: Sized {
+    fn clone (&self) -> Self;
+    
+    fn clone_from(&mut self, source: &Self) {...}
+} // 解决所有权问题的第三种方法
+
+#[derive(Clone)]
+struct Foo {
+    x: i32,
+}
+
+#[derive(Clone)]
+struct Bar{
+    x: Foo,
+}
+```
+
+```rust
+pub trait Copy: Clone {
+    
+} // rust中的copy语义
+// 包含引用的类型不能实现copy
+// 标记特型: 没有实现任何方法，只是标记行为
+// 一般来说一种类型可以clone就应该可以copy
+```
+
+```rust
+pub trait Debug {
+    fn fmt(&self, &mut Formatter) -> Result;
+}
+```
+
+```rust
+pub trait Default {
+    fn default () -> Self;
+}
+// 为类型定义默认值
+```
+
+```rust
+pub trait PartialEq<Rhs: ?Sized = Self> {
+    fn eq(&self, other: &Rhs) -> bool;
+    
+    fn ne(&self, other: &Rhs) -> bool {...};
+} // rhs 操作符重载，右表达式
+// PartialEq表示部分等价关系a == b b == c
+
+pub trait Eq: PartialEq<Self> {
+    
+}
+// Eq表示等价关系a == a,也是一种标记行为
+// f32为什么不是Eq因为在rust中f32有NaN的情况,NaN != NaN
+```
+
+```rust
+pub trait Hash {
+    fn hash<H: Hasher> (&self, state: &mut H);
+    
+    fn hash_slice<H: Hasher>(data: &[Self], state: &mut H) {
+        where Self: Sized{...}
+    }
+}
+// 表示可哈希类型
+// H类型参数是抽象的哈希状态，用于计算哈希值
+// 如果同时实现了Eq特型，需要满足如下性质
+// k1 == k2 -> hash(k1) == hash(k2)
+```
+
+```rust
+pub trait PartialOrd<Rhs: ?Sized = Self>: PartialEq<Rhs> { // ?Sized指不确定大小的类型, = Self指为他指定了默认类型
+    // Ordering is one of Less, Equal, Greater
+    fn partial_cmp(&self, other: &Rhs) -> Option<Ordering>;
+    
+    fn lt(&self, other: &Rhs) -> bool { ... };
+    fn le(&self, other: &Rhs) -> bool { ... };
+    fn gt(&self, other: &Rhs) -> bool { ... };
+    fn ge(&self, other: &Rhs) -> bool { ... };
+} // 注意PartialEq表示可能可以进行比较的特型
+
+// 对所有a, b, c的比较操作必须满足
+// 反对称性: 若a<b,则!(a>b).
+// 传递性: 若a<b,b<c则a<c
+// lt le gt ge eq ne具有基于partial_cmp的默认实现
+```
+
+```rust
+pub trait Ord: Eq + PartialOrd<Self> {
+    fm cmp(&self, other: &Self) -> Ordering;
+}
+// 表示实现该特性的类型形成全序
+// 完全性:类型的所有值都能够比较,f32 NaN就不能比较，f32不是Eq
+```
+
+关联类型的需求
+
+特型中有使用到的泛型类型，例如迭代器场景type Item，为集合类型实现迭代器的同时指定了特型关联的Item的类型
+
+```rust
+trait Graph {
+    type N;
+    type E;
+    fn edges(&self, &Self::N) -> Vec<Self::E>;
+}
+
+impl Graph for MyGraph {
+    type N = MyNode;
+    type E = MyEdge;
+    fn edges(&self, n: &MyNode) - > Vec<MyEdge> { /* .... */};
+}
+```
+
+特型的作用域
+
+```rust
+// rust中可以为任意类型实现自定义特型 
+trait Foo {
+    fn bar(&self) -> bool;
+}
+
+impl Foo for i32 {
+    fn bar(&self) -> bool {
+        true
+    }
+}
+// 不能为系统类型实现系统特型
+// 要么自定义特型，要么自定义类型
+```
+
+特型作用域规则示例
+
+```rust
+use std::Display
+
+impl Display for Point {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Point {}, {}", self.x, self.y)
+    }
+}
+// 定义{}选项的美观打印
+// 用于美观打印，不能自动获得
+// 可以使用write!宏来做具体实现
+```
+
+Drop特型
+
+```rust
+pub trait Drop {
+    fn drop(&mut self);
+}
+// 表示可以销毁的特型
+// 用于对象销毁，由编译器自动生成，不能显示调用
+```
+
+一般情况下不需要实现Drop因为编译器会自动实现
+
+什么时候需要手动实现?
+
+rust的引用计数指针Rc<T>就有特殊的Drop规则，当引用技术大于1时，drop只是对计数器减1，当时当计数器降为0时，需要删除这个Rc对象
+
+Sized特型  ?Sized特型
+
+Sized指编译期知道类型大小，?Sized表示类型大小不固定例如[T],str
+
+一般来说跟指针相关的泛型的类型参数的特型约束中会出现?Sized,例如Box<T>就有Box<T: ?Sized>
+
+### 特型对象
+
+rust中用来实现动态分发
+
+```rust
+trait Foo {
+    fn bar(&self);
+}
+
+impl Foo for String {
+    fn bar(&self) { /*....*/};
+}
+
+impl Foo for usize {
+    fn bar(&self) { /* ... */};
+}
+
+// 通过静态分发的方式满足约束T: Foo的任意类型上调用bar的不同版本
+// 代码编译时，编译器会给每个不同的bar生成对应的特化版本，对于实现Foo特型的每种类型，都会生成对应的函数
+fn blah(x: T) where T: Foo {
+    x.bar()
+}
+
+fn main() {
+    let s = "Foo".to_string();
+    let u = 12;
+    
+    blah(s);
+    blah(u);
+}
+
+// rust也可以通过特型对象进行动态分发
+// 特型对象要用Box<dyn Foo>或&dyn Foo的形式来使用
+// 背后的数据类型要实现Foo
+// 当使用动态分发时，特型背后的具体数据类型会被抹去，无法获得
+
+fn use_foo(f: &dyn Foo) {
+    match *f {
+        198 => println!("i32"),
+        // 这里会报错，因为编译器已经抹除掉了背后的类型数据，只能调用特型包含的方法
+    }
+}
+// 动态分发会造成一定运行时开销，但是在处理一些情况时会有用(例如动态大小的类型)，实际上特型对象只能通过指针的方式来使用，会增加指向方法的v-table
+```
+
+不是所有的特型都可以以特型对象的形式安全的使用
+
+例如，创建&dyn Clone会引起编译错误，因为Clone不是对象安全的
+
+特型是对象安全的，需要满足一下条件:
+
+- 所有超特型也是对象安全的
+- 不能以Sized为超特型
+- 所有关联函数能够从特型对象进行分发：
+  - 不带任何类型参数
+  - 方法除接收方(reciver)外，其他地方不能使用Self类型
+  - 接收方是引用或者某种形式的指针类型,如&self,&mut Self,Box<Self>
+  - 没有where Self: Sized字句
+
+rust更鼓励大家用静态分发的方式使用特型
+
+### 生命周期
+
+一般情况下编译器可以自动推断生命周期，但是当使用到多个引用或者需要返回引用的时候需要显示指定生命周期
+
+```rust
+fn bar<'a>(x: &'a i32) { // 声明一个生命周期a
+}
+```
+
+```rust
+fn borrow_x_or_y<'a>(x: &'a str, y: &'a str) -> 'a str {
+    /* 只要返回的引用还在,那么x和y的引用也必须还在 */
+}
+
+fn borrow_p<'a, 'b>(p: &'a str, q: &'b str) -> &'a str {
+    /* q的生命周期是独立的 p的借用至少要跟返回的生命周期一致 */
+}
+```
+
+```rust
+struct Pizza(Vec<i32>);
+
+    struct PizzaSlice<'a> {
+        pizza: &'a Pizza,
+        index: u32,
+    }
+
+    let p1 = Pizza(vec![1, 2, 3, 4, 5]);
+    {
+        let s1 = PizzaSlice {
+            pizza: &p1,
+            index: 2,
+        };
+    }
+```
+
+生命周期之间的关系
+
+```rust
+struct Foo<'b,'a> where 'b: 'a {
+    v: &'a Vec<i32>,
+    s: &'b str,
+}
+```
+
+impl代码段中的生命周期
+
+```rust
+struct Foo<'b,'a> where 'b: 'a {
+    v: &'a Vec<i32>,
+    s: &'b str,
+}
+
+impl<'b, 'a> Foo<'b, 'a>  where 'b: 'a{
+    fn new(v: &'a Vec<i32>, s: &'b str) -> Foo<'b, 'a> {
+        Foo { v: v, s: s }
+    }
+}
+```
+
+'static生命周期,在整个程序运行过程中都有效
+
+```rust
+let s1: &str = "hello";
+let s2: &'static str = "world"; 
+```
 
 
 
